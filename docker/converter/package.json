@@ -1,0 +1,15 @@
+{
+    "name": "rtcp-converter",
+    "version": "0.0.1",
+    "description": "Watch FS and generate geojsons",
+    "main": "convert.js",
+    "keywords": [],
+    "author": "Wai Yan",
+    "license": "ISC",
+    "dependencies": {
+        "chokidar": "^3.0.0",
+        "csv": "^5.1.1",
+        "find-remove": "^1.2.2",
+        "moment": "^2.24.0"
+    }
+}

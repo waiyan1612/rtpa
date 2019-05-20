@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset='utf-8' />
+  <title>Available Carparks Islandwide</title>
+  <meta name='robots' content='noindex, nofollow'>
+  <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+  <script src='https://static-assets.mapbox.com/gl-js-pricing/dist/mapbox-gl.js'></script>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js'></script>
+  <link href='https://static-assets.mapbox.com/gl-js-pricing/dist/mapbox-gl.css' rel='stylesheet' />
+  <style>
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Helvetica Neue', Helvetica, Arial, Sans-serif;
+  }
+
+  #map {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+  }
+
+  h1 {
+    font-size: 20px;
+    line-height: 30px;
+  }
+
+  h2 {
+    font-size: 14px;
+    line-height: 20px;
+    margin-bottom: 10px;
+  }
+
+  a {
+    text-decoration: none;
+    color: #2DC4B2;
+  }
+
+  #console {
+    position: absolute;
+    margin: 10px;
+    width: 300px;
+    background-color: white;
+    padding: 10px 20px;
+  }
+
+  .session {
+    margin-bottom: 20px;
+  }
+
+  .row {
+    height: 12px;
+    width: 100%;
+  }
+
+  .colors {
+    background: linear-gradient(to right, #2DC4B2, #3BB3C3, #669EC4, #8B88B6, #A2719B, #AA5E79);
+    margin-bottom: 5px;
+  }
+
+  .label {
+    width: 15%;
+    display: inline-block;
+    text-align: center;
+  }
+  </style>
+</head>
+
+<body>
+  <div id='map'></div>
+  <div id='console'>
+    <h1>Available Car Parks</h1>
+    <span>
+      <h2 style="display: inline-block">Last Updated: </h2>
+      <label style="font-size: 14px; margin-left:50px" id='current-time'></label>
+    </span>
+    <div class='session'>
+      <h2>Availability</h2>
+      <div class='row colors'>
+      </div>
+      <div class='row labels' style="font-size: 14px">
+        <div class='label'>&ge; 20</div>
+        <div class='label'>&ge; 50</div>
+        <div class='label'>&ge; 100</div>
+        <div class='label'>&ge; 200</div>
+        <div class='label'>&ge; 500</div>
+        <div class='label'>&ge; 1000</div>
+      </div>
+    </div>
+    <div class='session'>
+      <h2>Available Lots &ge; <label id='available-lots'>20</label></h2>
+      <input id='slider' class='row' type='range' min='0' max='1000' step='20' value='10' />
+    </div>
+  </div>
+  <script>
+
+  mapboxgl.accessToken = 'pk.eyJ1IjoiZXhhbXBsZXMiLCJhIjoiY2p0MG01MXRqMW45cjQzb2R6b2ptc3J4MSJ9.zA2W0IkI0c6KaAhJfk9bWg';
+  var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/light-v10',
+    center: [103.85728, 1.29115],
+    zoom: 11
+  });
+
+  map.on('load', function() {
+    // Buffer 1 minute for backend to process
+    let now = moment().subtract(1, 'minute')
+    document.getElementById('current-time').innerText = now.format('DD MMM, YYYY HH:mm');
+    let geojsonFile = `${now.format('YYYYMMDDHHmm')}.geojson`
+
+    var filterAvailable = ['>=', ['number',['get', 'available']], 20];
+    map.addLayer({
+      id: 'carparks',
+      type: 'circle',
+      source: {
+        type: 'geojson',
+        data: geojsonFile
+      },
+      paint: {
+        'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['number', ['get', 'available']],
+            10, 2,
+            100, 10
+        ],
+        'circle-color': [
+            'interpolate',
+            ['linear'],
+            ['number', ['get', 'available']],
+            20, '#AA5E79',
+            50, '#A2719B',
+            100, '#8B88B6',
+            200, '#669EC4',
+            500, '#3BB3C3',
+            1000, '#2DC4B2'
+        ],
+        'circle-opacity': 0.8
+      },
+      'filter': ['all', filterAvailable]
+    });
+
+    // update hour filter when the slider is dragged
+    document.getElementById('slider').addEventListener('input', function(e) {
+      let input = parseInt(e.target.value);
+      // update the map
+      filterAvailable = ['>=', ['number',['get', 'available']], input];
+      map.setFilter('carparks', ['all', filterAvailable]);
+
+      // update text in the UI
+      document.getElementById('available-lots').innerText = input;
+    });
+
+  });
+  </script>
+</body>
+
+</html>

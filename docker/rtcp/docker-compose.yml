@@ -1,0 +1,35 @@
+# IMPORTANT: For production environemnts, specify the image from releases directory with an explicit version tag.
+# e.g. dataspark-docker-releases.artifactory.datasparkanalytics.com/dataspark/capex-service:1.14.0'
+version: '3'
+services:
+  producer:
+    image: 'rtcp-assembly:0.0.1'
+    restart: unless-stopped
+    volumes:
+      - ./data/output:/var/rtcp/output
+    environment:
+      # use kafka:9092 for dockerized environment. localhost:29092 for local testing
+      - KAFKA_BROKER_LIST=kafka:9092
+      - RTCP_CSV_PATH=/var/rtcp/output
+      - DATAMALL_API_KEY=MZ7DulbVTu+UeH6GD8yF9w==
+      - PRODUCER_JAVA_OPTS=-Xmx512m
+      - CONSUMER_JAVA_OPTS=-Xmx1g
+  converter:
+    image: 'rtcp-converter:0.0.1'
+    restart: unless-stopped
+    volumes:
+      - ./data/output:/var/rtcp/output
+      - ../frontend/html:/var/rtcp/geojson
+    environment:
+      - RTCP_CSV_PATH=/var/rtcp/output
+      - RTCP_GEOJSON_PATH=/var/rtcp/geojson
+  ui:
+    image: 'rtcp-ui:0.0.1'
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ../frontend/html:/usr/share/nginx/html/
+networks:
+  default:
+    external:
+      name: rtcp_default
