@@ -1,0 +1,16 @@
+{
+    "name": "rtpa-converter",
+    "version": "1.0.0",
+    "description": "Watch FS and generate geojsons",
+    "main": "convert.js",
+    "keywords": [],
+    "author": "Wai Yan",
+    "license": "ISC",
+    "dependencies": {
+        "chokidar": "^3.0.0",
+        "csv": "^5.1.1",
+        "find-remove": "^1.2.2",
+        "merge-files": "^0.1.2",
+        "moment": "^2.26.0"
+    }
+}

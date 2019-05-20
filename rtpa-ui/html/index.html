@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset='utf-8' />
+  <title>RTPA - Real-Time Parking Availability</title>
+  <meta name='robots' content='noindex, nofollow'>
+  <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+  <script src='https://static-assets.mapbox.com/gl-js-pricing/dist/mapbox-gl.js'></script>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js'></script>
+  <link href='https://static-assets.mapbox.com/gl-js-pricing/dist/mapbox-gl.css' rel='stylesheet' />
+  <style>
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Helvetica Neue', Helvetica, Arial, Sans-serif;
+  }
+
+  #map {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+  }
+
+  h1 {
+    font-size: 20px;
+    line-height: 30px;
+  }
+
+  h2 {
+    font-size: 14px;
+    line-height: 20px;
+    margin-bottom: 10px;
+  }
+
+  a {
+    text-decoration: none;
+    color: #2DC4B2;
+  }
+
+  #console {
+    position: absolute;
+    margin: 10px;
+    width: 300px;
+    background-color: white;
+    padding: 10px 20px;
+  }
+
+  #availability-slider {
+    border-radius: 5px;
+    -webkit-appearance: none;
+    outline: none;
+    height: 10px;
+  }
+
+  .session {
+    margin-bottom: 20px;
+  }
+
+  .row {
+    height: 12px;
+    width: 100%;
+  }
+
+  .colors {
+    background: linear-gradient(to left, #2DC4B2, #3BB3C3, #669EC4, #8B88B6, #A2719B, #AA5E79);
+    margin-bottom: 5px;
+  }
+
+  .label {
+    width: 15%;
+    display: inline-block;
+    text-align: center;
+  }
+
+  #calendar.icon {
+    font-size: 1em; /* change icon size */
+    display: block;
+    position: relative;
+    width: 7em;
+    height: 7em;
+    background-color: #fff;
+    margin: 2em auto;
+    border-radius: 0.6em;
+    box-shadow: 0 1px 0 #bdbdbd, 0 2px 0 #fff, 0 3px 0 #bdbdbd, 0 4px 0 #fff, 0 5px 0 #bdbdbd, 0 0 0 1px #bdbdbd;
+    overflow: hidden;
+    -webkit-backface-visibility: hidden;
+    -webkit-transform: rotate(0deg) skewY(0deg);
+    -webkit-transform-origin: 50% 10%;
+    transform-origin: 50% 10%;
+  }
+
+  #calendar.icon * {
+    display: block;
+    width: 100%;
+    font-size: 1em;
+    font-weight: bold;
+    font-style: normal;
+    text-align: center;
+  }
+
+  #calendar.icon strong {
+    position: absolute;
+    top: 0;
+    padding: 0.4em 0;
+    color: #fff;
+    background-color: #3366FF;
+    border-bottom: 1px dashed #3300FF;
+    box-shadow: 0 2px 0 #3366FF;
+  }
+
+  #calendar.icon em {
+    position: absolute;
+    bottom: 0.3em;
+    color: #3366FF;
+  }
+
+  #calendar.icon span {
+    width: 100%;
+    font-size: 2.8em;
+    letter-spacing: -0.05em;
+    padding-top: 0.8em;
+    color: #2f2f2f;
+  }
+
+  /* The clock */
+  #clock {
+    background-color: white;
+    color: black;
+    display: inline-block;
+    width: auto;
+    padding: 0.25em 1em;
+    border-radius: 5px;
+  }
+
+  /* Paragraph fix */
+  #clock p {margin: 5px;}
+  /* Show time units and seprarator in a line */
+  #clock .time-unit, #clock .separator {display: inline-block; text-align: center; margin: 0 5px;}
+  #clock .time-unit .large {display: block; font-size: 2em;}
+  #clock .time-unit .small {display: block; font-size: 0.5em;}
+  #clock .separator {font-size: 2em; vertical-align: top;}
+
+  </style>
+</head>
+
+<body>
+  <div id='map'></div>
+
+  <div id='console'>
+    <!-- Calender . Credit to @craigbuckler -->
+    <div id="calendar" class="icon" style="display: none;">
+      <em class="day"></em>
+      <strong class="month"></strong>
+      <span class="date"></span>
+    </div>  
+
+    <!-- The digital clock. Credit to https://javascript.tutorials24x7.com/blog/how-to-make-digital-clock-in-javascript -->
+    <div id="clock">
+      <!-- Time units wrapper -->
+      <span class="wrap-time">
+        <!-- Time unit - Day -->
+        <span class="time-unit">
+          <span class="large day">Mon</span>
+          <span class="small">DAY</span>
+        </span>
+        <span class="time-unit">
+          <span class="large hours">00</span>
+          <span class="small">HOURS</span>
+        </span>
+        <span class="separator">:</span>
+        <span class="time-unit">
+          <span class="large minutes">00</span>
+          <span class="small">MINUTES</span>
+        </span>
+        <span class="time-unit">
+          <span class="large period">AM</span>
+          <span class="small">PERIOD</span>
+        </span>
+      </span>
+    </div>
+
+    <span>
+      <label id='date-label'></label><br><br>
+      <label id='timestamp-label'></label>
+      <input id='time-slider' class='row' type='range' value="100"/>
+    </span>
+    <div class='session'>
+      <h2>Available Lots &ge; <label id='available-lots'>20</label></h2>
+      <input id='availability-slider' class='row colors' type='range' min='0' max='500' step='20' value='20' />
+    </div>
+    <div class='session'>
+      <input type="checkbox" id="hide-large-checkbox" checked>
+      <label for="vehicle1"> Hide lots wiith availability &ge; 200 </label><br>
+    </div>
+  </div>
+  <script>
+
+  mapboxgl.accessToken = 'pk.eyJ1IjoiZXhhbXBsZXMiLCJhIjoiY2p0MG01MXRqMW45cjQzb2R6b2ptc3J4MSJ9.zA2W0IkI0c6KaAhJfk9bWg';
+  var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/light-v10',
+    center: [103.8, 1.35],
+    zoom: 11
+  });
+
+  map.on('load', function() {
+    const geojsonFile = `geojson/main.geojson`
+    map.addLayer({
+      id: 'carparks',
+      type: 'circle',
+      source: {
+        type: 'geojson',
+        data: geojsonFile
+      },
+      paint: {
+        // 'circle-radius': [
+        //     'interpolate',
+        //     ['linear'],
+        //     ['number', ['get', 'available']],
+        //     10, 5,
+        //     200, 10,
+        // ],
+        'circle-color': [
+            'interpolate',
+            ['linear'],
+            ['number', ['get', 'available']],
+            // 10, '#AA5E79',
+            // 20, '#A2719B',
+            // 50, '#8B88B6',
+            // 100, '#669EC4',
+            // 150, '#3BB3C3',
+            20, '#AA5E79',
+            40, '#A2719B',
+            60, '#8B88B6',
+            80, '#669EC4',
+            100, '#3BB3C3',
+            200, '#2DC4B2'
+        ],
+        'circle-opacity': 0.8
+      },
+      // 'filter': ['all', filterAvailable]
+    });
+
+    document.getElementById('availability-slider').addEventListener('input', function(e) {
+      updateFilters(map);
+    });
+
+    document.getElementById('time-slider').addEventListener('input', function(e) {
+      updateFilters(map);
+    });
+
+    document.getElementById('hide-large-checkbox').onclick = function() {
+      updateFilters(map);
+    }
+
+    function getFilterAvailable() {
+      let input = document.getElementById('availability-slider').value;
+      document.getElementById('available-lots').innerText = input;
+      return ['>=', ['number',['get', 'available']], parseInt(input)]
+    }
+
+    function getFilterTimestamp() {
+      let input = document.getElementById('time-slider').value
+      let m = moment(parseInt(input))
+
+      document.querySelector( '#calendar .day' ).innerHTML	= m.format('ddd')
+      document.querySelector( '#calendar .date' ).innerHTML	= m.format('D')
+      document.querySelector( '#calendar .month' ).innerHTML	= m.format('MMMM')
+
+      document.querySelector( '#clock .day' ).innerHTML	= m.format('ddd')
+      document.querySelector( '#clock .hours' ).innerHTML	= m.format('hh')
+      document.querySelector( '#clock .minutes' ).innerHTML	= m.format('mm')
+      document.querySelector( '#clock .period' ).innerHTML	= m.format('A')
+
+      let iso8601_dt = moment(parseInt(input)).toISOString().split('.')[0]+"Z"
+      return ['==', ['get', 'dt'], iso8601_dt]
+    }
+
+    function updateFilters(map) {
+      filterTimestamp = getFilterTimestamp();
+      filterAvailable = getFilterAvailable();
+      let filters = ['all', filterTimestamp, filterAvailable]
+      if(document.getElementById("hide-large-checkbox").checked) {
+        filters.push(['<=', ['number',['get', 'available']], 200])
+      }
+      map.setFilter('carparks', filters);
+    }
+
+    // Setting some constants
+    INTERVAL_MINUTES = 5
+    HISTORY_DURATION_HOURS = 2
+
+    const multiplier = 1000 * 60 * INTERVAL_MINUTES;    
+    const endDate = moment(Math.floor(moment().valueOf() / multiplier) * multiplier);
+    const startDate = endDate.clone().subtract(HISTORY_DURATION_HOURS, 'hours');
+
+    const slider = document.getElementById("time-slider");
+    slider.setAttribute("min", startDate.valueOf());
+    slider.setAttribute("max", endDate.valueOf());
+    slider.setAttribute("step", multiplier);
+    slider.setAttribute("value", endDate.valueOf());
+
+    updateFilters(map);
+
+    // For automated visualization
+    // setInterval(function(){
+    //     if(slider.value <= parseInt(slider.getAttribute("min"))) {
+    //       slider.value += multiplier;
+    //     } else {
+    //       slider.value -= multiplier;
+    //     }
+    //     updateFilters(map);
+    // }, 500);
+
+  });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,59 @@
+apply plugin: 'scala'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+
+// In Scala 2.12, the Scala compiler always compiles to Java 8
+// https://stackoverflow.com/a/52064924/3500885
+compileScala.targetCompatibility = 1.8
+ScalaCompileOptions.metaClass.useAnt = false
+
+group = 'com.waiyan.rtpa'
+version = '1.0.0'
+sourceCompatibility = '11'
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:5.2.0'
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext{
+    //dependencies
+    scalaVersion = '2.12.11'
+    scalaMajorVersion = '2.12'
+    sparkVersion = '2.4.6'
+    kafkaVersion = '2.5.0'
+}
+
+dependencies{
+
+    // kafka dependencies
+    implementation "org.apache.kafka:kafka_$scalaMajorVersion:$kafkaVersion"
+    implementation "org.apache.kafka:kafka-streams:$kafkaVersion"
+    
+    // gson dependencies
+    implementation "com.google.code.gson:gson:2.8.5"
+
+    // compileOnly is not used for the following because we want to build an uber-jar instead of deploying to a spark cluster
+    
+    // spark dependencies
+    implementation "org.apache.spark:spark-core_$scalaMajorVersion:$sparkVersion"
+    implementation "org.apache.spark:spark-sql_$scalaMajorVersion:$sparkVersion"
+    implementation "org.apache.spark:spark-catalyst_$scalaMajorVersion:$sparkVersion"
+    implementation "org.apache.spark:spark-streaming_$scalaMajorVersion:$sparkVersion"
+
+    // spark-kafka dependencies
+    implementation "org.apache.spark:spark-streaming-kafka-0-10_$scalaMajorVersion:$sparkVersion"
+    implementation "org.apache.spark:spark-sql-kafka-0-10_$scalaMajorVersion:$sparkVersion"
+}
+
+shadowJar {
+    mergeServiceFiles()
+}

@@ -1,0 +1,34 @@
+version: '3'
+services:
+  backend:
+    image: 'waiyan1612/rtpa:backend-1.0.0'
+    restart: unless-stopped
+    volumes:
+      - /tmp/rtpa/data:/tmp/rtpa/data
+    environment:
+      # Please set your DATAMALL_API_KEY here.
+      - DATAMALL_API_KEY=
+      - KAFKA_BROKER_LIST=kafka:9092
+      - RTPA_CSV_PATH=/tmp/rtpa/data/csv
+      - PRODUCER_TRIGGER_INTERVAL_MINUTES=5
+      - CONSUMER_TRIGGER_INTERVAL_MINUTES=1
+      - PRODUCER_JAVA_OPTS=-Xmx512m
+      - CONSUMER_JAVA_OPTS=-Xmx1g
+  converter:
+    image: 'waiyan1612/rtpa:converter-1.0.0'
+    restart: unless-stopped
+    volumes:
+      - /tmp/rtpa/data:/tmp/rtpa/data
+    environment:
+      - RTPA_CSV_PATH=/tmp/rtpa/data/csv
+      - RTPA_GEOJSON_PATH=/tmp/rtpa/data/geojson
+  ui:
+    image: 'waiyan1612/rtpa:ui-1.0.0'
+    restart: unless-stopped
+    ports: ["80:80"]
+    volumes:
+      - /tmp/rtpa/data/geojson:/usr/share/nginx/html/geojson
+networks:
+  default:
+    external:
+      name: rtpa_default
