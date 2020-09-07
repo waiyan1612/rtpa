@@ -27,14 +27,15 @@ docker-compose -f docker-compose-kafka.yml up -d
 
 ### 3. Creating a topic in Kafka
 Since bitnami kafka image doesn't provide a way to create topics on start up, we have to start zookeeper and kafka first and manually create the topic.
-
-
-Create a topic called rtpa used by rtpa-backend
 ```sh
+
+# Start a session in the kafka container
 docker container exec -it rtpa_kafka_1 /bin/bash
 
+# List existing topics
 /opt/bitnami/kafka/bin/kafka-topics.sh --list --zookeeper zookeeper:2181 
 
+# Create a topic called rtpa
 /opt/bitnami/kafka/bin/kafka-topics.sh --create --zookeeper zookeeper:2181 --topic rtpa --replication-factor 1 --partitions 1
 ```
 
@@ -42,13 +43,13 @@ docker container exec -it rtpa_kafka_1 /bin/bash
 
 ## RTPA Docker Images
 
-## Building images
+You can get the pre-built images from the [Docker Hub](https://hub.docker.com/repository/docker/waiyan1612/rtpa). You can also rebuild the images locally with the following steps.
+
+### Building images
 
 In order to build the images, you will need the following developer tools installed.
 - scala 2.12.x
 - node 12.x
-
-Alternativelt, you can get the pre-built images from the [Docker Hub](https://hub.docker.com/repository/docker/waiyan1612/rtpa).
 
 ```sh
 ./docker-build.sh
@@ -58,8 +59,10 @@ This will build the following docker images.
 2. **rtpa-converter** - NodeJS App that converts time series data to GeoJSON
 3. **rtpa-ui** - Mapbox JS based HTML served from Nginx server
 
+Alternativelty, you can get the pre-built images from the [Docker Hub](https://hub.docker.com/repository/docker/waiyan1612/rtpa).
+
 ## Running images
-1. Modify the environment variables and volume mounts (optional) in [docker-compose.yml](docker-compose.yml) or [docker-compose-local.yml](docker-compose-local.yml).
+1. Modify the environment variables and volume mounts (optional) in [docker-compose.yml](docker-compose.yml) (using images from Docker Hub) or [docker-compose-local.yml](docker-compose-local.yml) (using locally built images).
     - `DATAMALL_API_KEY` - Required. `AccountKey` provided by LTA Datamall
     - `RTPA_CSV_PATH` - Optional. Directory containing CSV carpack data, produced by rtpa-backend and consumed by rtpa-converter
     - `RTPA_GEOJSON_PATH` - Optional. Directory containing geojson carpack data, produced by rtpa-converter and consumed by rtpa-ui
@@ -67,11 +70,12 @@ This will build the following docker images.
     - `CONSUMER_TRIGGER_INTERVAL_MINUTES` - Optional. Determines how often the consumers reads the data from Kafka topic
     
 2. Run the docker images.
+
+    If you are using the images from Docker Hub,
     ```sh
     docker-compose up -d
     ```
-    Or if using the local build,
-
+    If you are using the local images,
     ```sh
     docker-compose -f docker-compose-local.yml 
     ```
