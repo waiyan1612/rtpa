@@ -1,63 +1,63 @@
 package com.waiyan.rtpa.producer
 
 import java.net.{HttpURLConnection, URL}
-
 import com.google.gson.Gson
-import java.time.{Duration, Instant, ZonedDateTime}
-import java.time.temporal.{ChronoField, ChronoUnit}
-import java.util.concurrent.{Executors, TimeUnit}
+import com.google.inject.{Inject, Singleton}
 
-import com.typesafe.scalalogging.Logger
-import com.waiyan.rtpa.common.{KafkaInfo, TimeZoneInfo}
+import java.time.{Duration, Instant, ZonedDateTime}
+import java.time.temporal.ChronoUnit
+import java.util.concurrent.{Executors, TimeUnit}
+import com.typesafe.scalalogging.LazyLogging
+import com.waiyan.rtpa.common.{KafkaConfig, TimeZoneInfo}
+import com.waiyan.rtpa.producer.ProducerApp._
+import com.waiyan.rtpa.producer.configs.{DataMallConfig, ProducerConfig}
 import com.waiyan.rtpa.ser.{CarPark, JsonCarParkResp}
 
-object ProducerApp {
+@Singleton
+class ProducerApp @Inject()(
+  kafkaConfig: KafkaConfig,
+  producerConfig: ProducerConfig,
+  dataMallConfig: DataMallConfig,
+  gson: Gson,
+) extends LazyLogging {
 
-  private val gson = new Gson
-  private val apiOffset = 500
-  private val logger = Logger("com.waiyan.rtpa.producer.ProducerApp")
-
-  private val DEFAULT_PRODUCER_TRIGGER_INTERVAL_MINUTES = "5"
-  private val producerTriggerInterval: Int = sys.env.getOrElse("PRODUCER_TRIGGER_INTERVAL_MINUTES", DEFAULT_PRODUCER_TRIGGER_INTERVAL_MINUTES).toInt
-
-  def main(args: Array[String]): Unit = {
-
+  def schedule(): Unit = {
     // Round up to closet second
     val now = ZonedDateTime.now(TimeZoneInfo.zoneOffset).truncatedTo(ChronoUnit.SECONDS).plusSeconds(1)
-    val nextRun = now.truncatedTo(ChronoUnit.HOURS).plusMinutes(producerTriggerInterval * (now.getMinute / producerTriggerInterval + 1).toLong)
+    val nextRun = now.truncatedTo(ChronoUnit.HOURS)
+      .plusMinutes(producerConfig.triggerIntervalMinutes * (now.getMinute / producerConfig.triggerIntervalMinutes + 1).toLong)
     val initialDelay = Duration.between(now, nextRun).getSeconds
 
+    logger.info(s"Process will start after $initialDelay seconds.")
     val executor = Executors.newScheduledThreadPool(1)
-    executor.scheduleAtFixedRate(process, initialDelay, producerTriggerInterval * 60, TimeUnit.SECONDS)
+    executor.scheduleAtFixedRate(process, initialDelay, producerConfig.triggerIntervalMinutes * 60, TimeUnit.SECONDS)
   }
 
   private val process = new Runnable {
-    override def run() = {
+    override def run(): Unit = {
       var cursor = 0
       var count = 0
       var fetchedAll = false
 
-      val carParkProducer = new CarParkProducer(sys.env.getOrElse("KAFKA_BROKER_LIST", KafkaInfo.BROKER_LIST))
-      val apiKey = sys.env.getOrElse("DATAMALL_API_KEY", throw new RuntimeException("DATAMALL_API_KEY is unset"))
-
+      val carParkProducer = new CarParkProducer(kafkaConfig.brokerList)
       val now =  ZonedDateTime.now(TimeZoneInfo.zoneOffset)
-      val minToAdd = producerTriggerInterval * Math.round(now.getMinute.toDouble / producerTriggerInterval)
+      val minToAdd = producerConfig.triggerIntervalMinutes * Math.round(now.getMinute.toDouble / producerConfig.triggerIntervalMinutes)
       val roundedNow = Instant.from(now).truncatedTo(ChronoUnit.HOURS).plus(minToAdd, ChronoUnit.MINUTES)
 
       while (!fetchedAll) {
-        val carParks = getCarParks(cursor, apiKey)
-        carParkProducer.produce(roundedNow.toString, KafkaInfo.TOPIC, carParks)
+        val carParks = getCarParks(cursor)
+        carParkProducer.produce(roundedNow.toString, kafkaConfig.topic, carParks)
         fetchedAll = carParks.isEmpty
         count += carParks.length
-        cursor += apiOffset
+        cursor += API_OFFSET
       }
       logger.info(s"Fetched $count records.")
     }
   }
 
-  private def getCarParks(cursor: Int, key: String) = {
+  private def getCarParks(cursor: Int) = {
     try {
-      val content = get(s"http://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2?$$skip=$cursor", key)
+      val content = get(cursor)
       gson.fromJson(content, classOf[JsonCarParkResp]).value
     } catch {
       case e @ (_: java.io.IOException) =>
@@ -67,9 +67,9 @@ object ProducerApp {
   }
 
   @throws(classOf[java.io.IOException])
-  private def get(url: String, accountKey: String) = {
-    val connection = new URL(url).openConnection.asInstanceOf[HttpURLConnection]
-    connection.setRequestProperty("AccountKey", accountKey)
+  private def get(cursor: Int): String = {
+    val connection = new URL(s"$CARPARK_ENDPOINT?$$skip=$cursor").openConnection.asInstanceOf[HttpURLConnection]
+    connection.setRequestProperty("AccountKey", dataMallConfig.apiKey)
     connection.setConnectTimeout(5000)
     connection.setReadTimeout(5000)
     connection.setRequestMethod("GET")
@@ -87,5 +87,9 @@ object ProducerApp {
       throw new java.io.IOException("Null input stream.")
     }
   }
+}
 
+object ProducerApp {
+  val CARPARK_ENDPOINT: String = "http://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2"
+  val API_OFFSET = 500
 }

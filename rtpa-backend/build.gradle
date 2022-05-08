@@ -37,7 +37,13 @@ dependencies{
     // kafka dependencies
     implementation "org.apache.kafka:kafka_$scalaMajorVersion:$kafkaVersion"
     implementation "org.apache.kafka:kafka-streams:$kafkaVersion"
-    
+
+    // typesafe dependencies
+    implementation "com.typesafe:config:1.3.2"
+
+    // guice dependencies
+    implementation "com.google.inject:guice:4.2.2"
+
     // gson dependencies
     implementation "com.google.code.gson:gson:2.8.5"
 
